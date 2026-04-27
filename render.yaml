@@ -1,0 +1,40 @@
+services:
+  - type: web
+    name: aegiscx-api
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    plan: free
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: SECRET_KEY
+        sync: false          # You paste this manually in Render dashboard
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: MISTRAL_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: HF_TOKEN
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false          # Set to your Netlify URL after deploy
+      - key: USE_CELERY
+        value: "false"
+      - key: WHISPER_MODEL_SIZE
+        value: base
+      - key: STT_DEVICE
+        value: cpu
+      - key: STT_COMPUTE_TYPE
+        value: int8
+      - key: USE_FASTER_WHISPER
+        value: "true"
+      - key: LOG_LEVEL
+        value: INFO
+      - key: MAX_FILE_SIZE_MB
+        value: "500"
+      - key: DEBUG
+        value: "false"
