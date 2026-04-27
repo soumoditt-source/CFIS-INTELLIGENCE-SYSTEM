@@ -1,0 +1,59 @@
+# OS and editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.snapshots/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+backend/venv/
+backend/venv311/
+.venv/
+venv/
+
+# Node / Next.js
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/tsconfig.tsbuildinfo
+frontend/*.log
+npm-debug.log*
+
+# Environment files
+.env
+.env.*
+!.env.example
+backend/.env
+backend/.env.*
+!backend/.env.example
+frontend/.env.local
+frontend/.env.local.*
+frontend/.env.production
+frontend/.env.development
+!frontend/.env.example
+
+# Local runtime data
+logs/
+data/
+backend/logs/
+backend/aegis.db
+backend/data/*.db
+backend/data/raw/
+backend/data/processed/
+backend/data/chromadb/
+backend/data/temp/
+backend/data/temp_uploads/
+backend/models/hf_cache/
+
+# Uploaded and generated binaries
+*.pdf
+*.zip

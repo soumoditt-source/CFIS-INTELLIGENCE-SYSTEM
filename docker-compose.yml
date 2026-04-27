@@ -1,0 +1,136 @@
+version: '3.9'
+
+# AegisCX — Enterprise Customer Intelligence Engine
+# Docker Compose: Full local development stack
+# Services: FastAPI, Celery workers, Redis, PostgreSQL
+
+services:
+  # ─── PostgreSQL database ─────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: aegiscx_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-aegiscx}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aegiscx_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-aegiscx_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-aegiscx}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Redis broker + cache ────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: aegiscx_redis
+    restart: unless-stopped
+    command: redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── FastAPI backend ──────────────────────────────────────
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: aegiscx_api
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-aegiscx}:${POSTGRES_PASSWORD:-aegiscx_secret}@postgres:5432/${POSTGRES_DB:-aegiscx_db}
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production-32-chars-min}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - HF_TOKEN=${HF_TOKEN:-}
+      - ENVIRONMENT=development
+    volumes:
+      - ./backend:/app
+      - audio_data:/app/data
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # ─── Celery worker: Audio processing ─────────────────────
+  worker_audio:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: aegiscx_worker_audio
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-aegiscx}:${POSTGRES_PASSWORD:-aegiscx_secret}@postgres:5432/${POSTGRES_DB:-aegiscx_db}
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production-32-chars-min}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - HF_TOKEN=${HF_TOKEN:-}
+    volumes:
+      - ./backend:/app
+      - audio_data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: celery -A app.workers.celery_app worker -Q audio_queue -c 2 --loglevel=info
+
+  # ─── Celery worker: STT + NLP ─────────────────────────────
+  worker_nlp:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: aegiscx_worker_nlp
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-aegiscx}:${POSTGRES_PASSWORD:-aegiscx_secret}@postgres:5432/${POSTGRES_DB:-aegiscx_db}
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production-32-chars-min}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - HF_TOKEN=${HF_TOKEN:-}
+    volumes:
+      - ./backend:/app
+      - audio_data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: celery -A app.workers.celery_app worker -Q stt_queue,nlp_queue -c 1 --loglevel=info
+
+  # ─── Celery Flower monitor ───────────────────────────────
+  flower:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: aegiscx_flower
+    restart: unless-stopped
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+    ports:
+      - "5555:5555"
+    depends_on:
+      - redis
+    command: celery -A app.workers.celery_app flower --port=5555 --broker=redis://redis:6379/0
+
+volumes:
+  postgres_data:
+  redis_data:
+  audio_data:
