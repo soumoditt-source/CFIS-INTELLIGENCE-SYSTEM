@@ -1,6 +1,7 @@
 [build]
   base = "frontend"
   command = "npm run build"
+  publish = ".next"
 
 [build.environment]
   NODE_VERSION = "20"
@@ -8,3 +9,11 @@
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
+
+# Redirect API calls to the backend (not needed — frontend calls backend directly via env var)
+# All routes handled by Next.js
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  force = false

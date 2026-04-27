@@ -9,6 +9,16 @@ const nextConfig = {
   },
   images: {
     domains: ["localhost"],
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "**.railway.app",
+      },
+      {
+        protocol: "https",
+        hostname: "**.onrender.com",
+      },
+    ],
   },
 };
 
