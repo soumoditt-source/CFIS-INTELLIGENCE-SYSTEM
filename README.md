@@ -13,6 +13,12 @@ The current repository has been restored to the last working local flow and re-a
 - transcript, insights, and report download flow work
 - a fresh warmed sample upload completed to `ANALYZED` in about `28.6 seconds`
 
+## Local prerequisites
+
+- Python `3.10+`
+- Node.js `18+`
+- FFmpeg on your `PATH`
+
 Local URLs:
 
 - Frontend: `http://127.0.0.1:3000`
@@ -45,6 +51,22 @@ Upload
 
 ## Local quick start
 
+### Clean-machine setup
+
+For a fresh local machine or a freshly cloned repo:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\setup_aegiscx.ps1
+```
+
+This script:
+
+- creates `backend\venv311`
+- installs backend Python dependencies
+- installs frontend npm dependencies
+- creates local `.env` files from safe templates if missing
+- initializes the local SQLite database
+
 ### One-command launcher
 
 From the repository root:
@@ -54,6 +76,8 @@ powershell -ExecutionPolicy Bypass -File .\launch_aegiscx.ps1
 ```
 
 This starts both services, clears the local ports, waits for readiness, and writes logs under `logs/`.
+
+If the launcher detects a missing virtual environment or missing `node_modules`, it will automatically run `setup_aegiscx.ps1` first.
 
 ### Manual backend
 
@@ -69,6 +93,13 @@ uvicorn app.main:app --host 127.0.0.1 --port 8000
 cd frontend
 npm install
 npm run dev
+```
+
+### Fresh local stack in two commands
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\setup_aegiscx.ps1
+powershell -ExecutionPolicy Bypass -File .\launch_aegiscx.ps1
 ```
 
 ## Local access
@@ -160,6 +191,7 @@ CUSTOMER FEEDBACK SYSTEM TRANSCRIPT/
 |   `-- requirements.txt
 |-- frontend/
 |   `-- src/
+|-- setup_aegiscx.ps1
 |-- launch_aegiscx.ps1
 |-- render.yaml
 |-- TECHNICAL.md
@@ -176,6 +208,7 @@ CUSTOMER FEEDBACK SYSTEM TRANSCRIPT/
 - STT engine: [backend/app/services/stt/engine.py](/d:/CUSTOMER%20FEEDBACK%20SYSTEM%20TRANSCRIPT/backend/app/services/stt/engine.py)
 - NLP pipeline: [backend/app/services/nlp/pipeline.py](/d:/CUSTOMER%20FEEDBACK%20SYSTEM%20TRANSCRIPT/backend/app/services/nlp/pipeline.py)
 - LLM orchestrator: [backend/app/services/llm/orchestrator.py](/d:/CUSTOMER%20FEEDBACK%20SYSTEM%20TRANSCRIPT/backend/app/services/llm/orchestrator.py)
+- Local bootstrap: [setup_aegiscx.ps1](/d:/CUSTOMER%20FEEDBACK%20SYSTEM%20TRANSCRIPT/setup_aegiscx.ps1)
 - Frontend auth store: [frontend/src/lib/auth.ts](/d:/CUSTOMER%20FEEDBACK%20SYSTEM%20TRANSCRIPT/frontend/src/lib/auth.ts)
 - Upload page: [frontend/src/app/upload/page.tsx](/d:/CUSTOMER%20FEEDBACK%20SYSTEM%20TRANSCRIPT/frontend/src/app/upload/page.tsx)
 - Recording detail shell: [frontend/src/app/recording/[id]/page.tsx](/d:/CUSTOMER%20FEEDBACK%20SYSTEM%20TRANSCRIPT/frontend/src/app/recording/[id]/page.tsx)

@@ -65,9 +65,28 @@ $backendOut = Join-Path $logDir "backend-live.out.log"
 $backendErr = Join-Path $logDir "backend-live.err.log"
 $frontendOut = Join-Path $logDir "frontend-live.out.log"
 $frontendErr = Join-Path $logDir "frontend-live.err.log"
+$setupScript = Join-Path $root "setup_aegiscx.ps1"
 
 if (-not (Test-Path $pythonPath)) {
-    throw "Backend Python runtime not found at $pythonPath"
+    if (Test-Path $setupScript) {
+        Warn "Backend runtime is missing. Running setup_aegiscx.ps1 first."
+        & powershell -ExecutionPolicy Bypass -File $setupScript
+    }
+}
+
+if (-not (Test-Path $pythonPath)) {
+    throw "Backend Python runtime not found at $pythonPath after setup."
+}
+
+if (-not (Test-Path (Join-Path $frontendPath "node_modules"))) {
+    if (Test-Path $setupScript) {
+        Warn "Frontend dependencies are missing. Running setup_aegiscx.ps1 first."
+        & powershell -ExecutionPolicy Bypass -File $setupScript
+    }
+}
+
+if (-not (Test-Path (Join-Path $frontendPath "node_modules"))) {
+    throw "Frontend dependencies are missing after setup."
 }
 
 if (-not (Test-Path $logDir)) {
