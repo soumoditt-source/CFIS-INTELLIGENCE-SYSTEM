@@ -9,6 +9,11 @@ LABEL version="1.0"
 # Install system dependencies including FFmpeg
 RUN apt-get update && apt-get install -y \
     ffmpeg \
+    fonts-dejavu-core \
+    libharfbuzz-subset0 \
+    libharfbuzz0b \
+    libpango-1.0-0 \
+    libpangoft2-1.0-0 \
     libsndfile1 \
     libgomp1 \
     build-essential \
