@@ -6,6 +6,7 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: python init_db.py && uvicorn app.main:app --host 0.0.0.0 --port $PORT
     plan: free
+    region: singapore
     healthCheckPath: /api/v1/health
     envVars:
       - key: ENVIRONMENT

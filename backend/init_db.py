@@ -68,10 +68,30 @@ async def main():
     print(f"--- AegisCX Database Initializer ---")
     print(f"Target: {DATABASE_URL}")
     
-    # Check health first
-    is_up = await check_db_health()
+    # Check health first with retries
+    max_retries = 5
+    retry_delay = 3
+    is_up = False
+    last_error = ""
+
+    for i in range(max_retries):
+        print(f"Checking database connectivity (Attempt {i+1}/{max_retries})...")
+        try:
+            from sqlalchemy import text
+            from app.core.database import AsyncSessionLocal
+            async with AsyncSessionLocal() as session:
+                await session.execute(text("SELECT 1"))
+            is_up = True
+            break
+        except Exception as e:
+            last_error = str(e)
+            if i < max_retries - 1:
+                await asyncio.sleep(retry_delay)
+            
     if not is_up and "postgresql" in DATABASE_URL:
-        print("ERROR: PostgreSQL is not reachable. Ensure the database is running.")
+        print(f"ERROR: PostgreSQL is not reachable.")
+        print(f"Detail: {last_error}")
+        print("TIP: If using Render, ensure both the Web Service and Database are in the same region (e.g., Singapore).")
         sys.exit(1)
         
     print("Initializing tables...")
