@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  output: 'export',
   experimental: {
     serverActions: { allowedOrigins: ["localhost:3000"] },
   },
@@ -8,7 +9,7 @@ const nextConfig = {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1",
   },
   images: {
-    domains: ["localhost"],
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: "https",
