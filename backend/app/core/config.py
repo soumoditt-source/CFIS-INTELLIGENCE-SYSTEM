@@ -92,7 +92,8 @@ class Settings(BaseSettings):
     @classmethod
     def validate_database_url(cls, v: str) -> str:
         """
-        Fix Render's postgres:// prefix and ensure asyncpg is used with SSL in production.
+        Fix Render's postgres:// prefix and ensure asyncpg is used.
+        Only adds SSL if it's an external connection (contains 'render.com').
         """
         if not v:
             return v
@@ -105,11 +106,15 @@ class Settings(BaseSettings):
         if "postgresql" in v and "+asyncpg" not in v:
             v = v.replace("postgresql://", "postgresql+asyncpg://", 1)
             
-        # 3. Add SSL requirement for production PostgreSQL if not already present
-        # Render's internal URL might not need it, but External certainly does.
-        # asyncpg uses 'ssl=require', whereas psycopg uses 'sslmode=require'
-        if "postgresql" in v and "?" not in v:
-            v += "?ssl=require"
+        # 3. Handle SSL
+        # Render Internal URLs (e.g. dpg-xxx-a) DO NOT support SSL.
+        # Render External URLs (e.g. dpg-xxx-a.singapore-postgres.render.com) REQUIRE SSL.
+        if "postgresql" in v and "ssl=" not in v:
+            is_internal = "render.com" not in v and "dpg-" in v
+            if not is_internal:
+                # Add SSL for external connections
+                sep = "&" if "?" in v else "?"
+                v += f"{sep}ssl=require"
             
         return v
 
@@ -125,11 +130,14 @@ class Settings(BaseSettings):
         # Try to derive from database_url if possible
         db_url = info.data.get("database_url")
         if db_url and "postgresql" in db_url:
-            # Strip +asyncpg and replace with nothing
+            # Strip +asyncpg
             sync_url = db_url.replace("+asyncpg", "")
-            # Ensure it has postgresql:// (sometimes it might have postgresql+asyncpg://)
+            # Ensure it has postgresql://
             if sync_url.startswith("postgres://"):
                  sync_url = sync_url.replace("postgres://", "postgresql://", 1)
+            # asyncpg uses ssl=require, but psycopg2 uses sslmode=require
+            if "ssl=" in sync_url:
+                sync_url = sync_url.replace("ssl=", "sslmode=")
             return sync_url
             
         return v
