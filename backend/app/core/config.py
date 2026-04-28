@@ -10,7 +10,7 @@ Build Log: backend/logs/build_log.jsonl
 
 from functools import lru_cache
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, List, Optional, Union
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -36,21 +36,26 @@ class Settings(BaseSettings):
     debug: bool = Field(default=False)
     log_level: str = Field(default="INFO")
     use_celery: bool = Field(default=False, description="Set True to use Celery/Redis; False uses inline BackgroundTasks")
-    cors_origins: List[str] = Field(
+    cors_origins: Any = Field(
         default=["http://localhost:3000", "http://127.0.0.1:3000"],
         description="Allowed CORS origins"
     )
 
-    @field_validator("cors_origins", mode="before")
+    @field_validator("cors_origins", "allowed_extensions", mode="before")
     @classmethod
-    def parse_cors(cls, v):
+    def parse_list(cls, v):
         """Accept either a JSON array or a comma-separated string."""
         if isinstance(v, str):
             v = v.strip()
-            if v.startswith("["):
-                import json
-                return json.loads(v)
-            return [origin.strip() for origin in v.split(",") if origin.strip()]
+            if not v:
+                return []
+            if v.startswith("[") and v.endswith("]"):
+                try:
+                    import json
+                    return json.loads(v)
+                except Exception:
+                    pass
+            return [item.strip() for item in v.split(",") if item.strip()]
         return v
 
     @field_validator("debug", "use_celery", mode="before")
@@ -122,7 +127,7 @@ class Settings(BaseSettings):
     chromadb_dir: Path = Field(default=Path("./data/chromadb"))
     log_dir: Path = Field(default=Path("./logs"))
     max_file_size_gb: float = Field(default=1.0, description="Maximum upload file size in GB")
-    allowed_extensions: List[str] = Field(
+    allowed_extensions: Any = Field(
         default=["mp3", "mp4", "wav", "m4a", "webm", "ogg", "flac", "mpeg"]
     )
 
