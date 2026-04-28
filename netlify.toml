@@ -7,10 +7,8 @@
   NODE_VERSION = "20"
   NEXT_PUBLIC_API_URL = "https://aegiscx-api.onrender.com/api/v1"
 
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+# Next.js on Netlify handles routing automatically.
+# No SPA redirects to index.html needed.
 
 # Next.js specific settings
 [[headers]]

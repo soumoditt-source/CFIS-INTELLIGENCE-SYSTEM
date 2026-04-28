@@ -83,6 +83,32 @@ class Settings(BaseSettings):
         default="postgresql://aegiscx:aegiscx_secret_password@localhost:5432/aegiscx_db"
     )
 
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def validate_database_url(cls, v: str) -> str:
+        """
+        Fix Render's postgres:// prefix and ensure asyncpg is used.
+        """
+        if not v:
+            return v
+        if v.startswith("postgres://"):
+            v = v.replace("postgres://", "postgresql://", 1)
+        if "postgresql" in v and "+asyncpg" not in v:
+            v = v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return v
+
+    @field_validator("database_url_sync", mode="before")
+    @classmethod
+    def validate_database_url_sync(cls, v: str) -> str:
+        """
+        Fix Render's postgres:// prefix for sync connections.
+        """
+        if not v:
+            return v
+        if v.startswith("postgres://"):
+            v = v.replace("postgres://", "postgresql://", 1)
+        return v
+
     # ─── Redis ───────────────────────────────────────────────
     redis_url: str = Field(default="redis://localhost:6379/0")
     celery_broker_url: str = Field(default="redis://localhost:6379/0")
