@@ -1,15 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  output: 'export',
   experimental: {
-    serverActions: { allowedOrigins: ["localhost:3000"] },
+    serverActions: {
+      allowedOrigins: ["localhost:3000", "127.0.0.1:3000"],
+    },
   },
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1",
   },
   images: {
-    unoptimized: true,
     remotePatterns: [
       {
         protocol: "https",
@@ -18,6 +18,10 @@ const nextConfig = {
       {
         protocol: "https",
         hostname: "**.onrender.com",
+      },
+      {
+        protocol: "https",
+        hostname: "**.vercel.app",
       },
     ],
   },

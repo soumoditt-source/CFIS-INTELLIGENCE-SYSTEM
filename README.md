@@ -1,25 +1,17 @@
 # AegisCX Intelligence Platform
 
-AegisCX is a transcript-first customer feedback intelligence system for turning uploaded audio and video reviews into structured business insight. The platform accepts customer conversations, preserves the raw transcript, then layers sentiment, emotion, intent, behavioral cues, product mentions, and report-ready summaries on top for company teams.
-
-## What the system does
-
-- Accepts `mp3`, `mp4`, `wav`, `m4a`, `webm`, `ogg`, `flac`, and `mpeg` files up to `1 GB`
-- Normalizes media with FFmpeg and prepares chunk-aware audio for reliable speech extraction
-- Produces a verbatim transcript first, then enriches it with speaker turns when available
-- Generates executive summaries, key praises, key complaints, product mentions, behavioral scoring, and structured JSON insights
-- Exposes the full workflow through a FastAPI backend and Next.js dashboard
+AegisCX converts customer review audio and video into transcript-first business intelligence. The system preserves the original conversation, then layers sentiment, emotion, intent, product cues, behavioral signals, and structured summaries on top so a company can audit both the evidence and the interpretation in one place.
 
 ## Verified current state
 
-The local stack has been re-verified on the current codebase:
+The current repository has been restored to the last working local flow and re-aligned for deployment:
 
-- Frontend build passes
-- Backend tests pass
-- Auth register and login both work
-- Seeded local demo login works
-- Report download works with an automatic HTML fallback when native PDF libraries are unavailable on Windows
-- A fresh warmed upload completed from upload to `ANALYZED` in about `53 seconds`
+- frontend builds successfully
+- backend tests pass
+- auth register and login work
+- seeded demo login works
+- transcript, insights, and report download flow work
+- a fresh warmed sample upload completed to `ANALYZED` in about `28.6 seconds`
 
 Local URLs:
 
@@ -27,7 +19,16 @@ Local URLs:
 - API docs: `http://127.0.0.1:8000/api/docs`
 - Health: `http://127.0.0.1:8000/api/v1/health`
 
-## Architecture at a glance
+## What the product does
+
+- Accepts `mp3`, `mp4`, `wav`, `m4a`, `webm`, `ogg`, `flac`, and `mpeg`
+- Supports uploads up to `1 GB`
+- Converts incoming media into normalized audio for stable speech extraction
+- Produces a verbatim transcript before higher-level interpretation
+- Adds sentiment, emotion, intent, entities, behavioral cues, and product-facing summaries
+- Exposes recordings, analytics, and report downloads through a FastAPI backend and a Next.js dashboard
+
+## System flow
 
 ```text
 Upload
@@ -39,25 +40,8 @@ Upload
   -> NLP intelligence analysis
   -> optional LLM refinement
   -> insight persistence
-  -> dashboard, analytics, and downloadable report output
+  -> dashboard and report output
 ```
-
-## Core product behavior
-
-The platform is designed around one principle: keep the original conversation intact, then add intelligence around it without losing evidential grounding. Every downstream insight starts from the saved transcript, not from summary-only interpretation. That means teams can inspect the raw wording, the structured speaker flow, and the higher-level analysis side by side.
-
-The current implementation also favors continuity under imperfect local conditions. If a provider, native library, or model stage is unavailable, the system degrades gracefully instead of collapsing the user flow. That applies to guest-mode development access, report generation fallback, and model inference handoff.
-
-## Key reliability upgrades in this version
-
-- Password hashing now uses a stable PBKDF2 path for new accounts, while still accepting older bcrypt hashes.
-- Every real account is normalized into a workspace so dashboard and upload flows do not break on missing `company_id`.
-- The seeded development admin now uses a valid login email: `demo@aegiscx.app`.
-- Report download now falls back to HTML when native PDF rendering libraries are unavailable.
-- STT and NLP model stacks now reuse shared in-process caches instead of reloading on every recording.
-- Startup triggers background model warmup so the first real upload is faster.
-- Upload UI messaging now distinguishes between upload completion and ongoing server-side analysis.
-- Local summaries were upgraded to produce denser paragraph-level context with stronger behavioral framing.
 
 ## Local quick start
 
@@ -69,13 +53,7 @@ From the repository root:
 powershell -ExecutionPolicy Bypass -File .\launch_aegiscx.ps1
 ```
 
-This launcher:
-
-- clears ports `3000` and `8000`
-- starts the FastAPI backend
-- starts the Next.js frontend
-- waits for both services
-- writes runtime logs under `logs/`
+This starts both services, clears the local ports, waits for readiness, and writes logs under `logs/`.
 
 ### Manual backend
 
@@ -93,22 +71,18 @@ npm install
 npm run dev
 ```
 
-## Local auth modes
+## Local access
 
-### Development guest mode
-
-If no token is present in local development, the backend can still expose the dashboard through the deterministic local mock admin path. That keeps the app usable during early testing.
-
-### Seeded local demo admin
+Seeded development demo account:
 
 - Email: `demo@aegiscx.app`
 - Password: `AegisCX123`
 
-This account is for local development only and is re-seeded on startup.
+This account is intended for local and test environments only.
 
 ## Environment setup
 
-Use the example files as the safe baseline:
+Use the example files as the safe starting point:
 
 - [backend/.env.example](/d:/CUSTOMER%20FEEDBACK%20SYSTEM%20TRANSCRIPT/backend/.env.example)
 - [frontend/.env.example](/d:/CUSTOMER%20FEEDBACK%20SYSTEM%20TRANSCRIPT/frontend/.env.example)
@@ -117,7 +91,7 @@ Important backend settings:
 
 - `SECRET_KEY`
 - `DATABASE_URL`
-- `REDIS_URL`
+- `CORS_ORIGINS`
 - `WHISPER_MODEL_SIZE`
 - `WHISPER_DEVICE`
 - `GOOGLE_API_KEY`
@@ -148,24 +122,24 @@ Important frontend setting:
 - `GET /api/v1/reports/{id}/pdf`
 - `GET /api/v1/health`
 
-## Deployment notes
+## Zero-cost public deployment
 
-### Frontend on Netlify
+The cleanest free deployment path for the current repository is:
 
-This repo now includes a root [netlify.toml](/d:/CUSTOMER%20FEEDBACK%20SYSTEM%20TRANSCRIPT/netlify.toml) configured for the `frontend` app. On Netlify you should:
+1. frontend on Vercel Hobby
+2. backend on Render Free Web Service
+3. database on Render Free Postgres
 
-1. Connect the repository.
-2. Keep the base directory as `frontend`.
-3. Set `NEXT_PUBLIC_API_URL` to your deployed backend API root.
+That stack is good for testing from any device, public demos, and portfolio-style use. It is not the same as a fully durable production stack because free Render services sleep when idle and use ephemeral local disk storage.
 
-### Backend deployment
+Deployment instructions live in [DEPLOYMENT.md](/d:/CUSTOMER%20FEEDBACK%20SYSTEM%20TRANSCRIPT/DEPLOYMENT.md).
 
-The FastAPI backend should be deployed separately on a Python or Docker host such as Render, Railway, Fly.io, or any container platform. Once deployed, update:
+## Honest free-tier limits
 
-- backend `CORS_ORIGINS`
-- frontend `NEXT_PUBLIC_API_URL`
-
-More detail is in [DEPLOYMENT.md](/d:/CUSTOMER%20FEEDBACK%20SYSTEM%20TRANSCRIPT/DEPLOYMENT.md).
+- Free Render web services spin down after inactivity and take time to wake up.
+- Free Render web services do not keep local filesystem changes between restarts or redeploys.
+- Free Render Postgres is convenient for zero-cost testing, but it expires after 30 days.
+- The app is public-demo ready on free services, but long-term production media retention needs object storage and a more durable database plan.
 
 ## Repository map
 
@@ -187,7 +161,7 @@ CUSTOMER FEEDBACK SYSTEM TRANSCRIPT/
 |-- frontend/
 |   `-- src/
 |-- launch_aegiscx.ps1
-|-- netlify.toml
+|-- render.yaml
 |-- TECHNICAL.md
 `-- DEPLOYMENT.md
 ```
@@ -204,7 +178,8 @@ CUSTOMER FEEDBACK SYSTEM TRANSCRIPT/
 - LLM orchestrator: [backend/app/services/llm/orchestrator.py](/d:/CUSTOMER%20FEEDBACK%20SYSTEM%20TRANSCRIPT/backend/app/services/llm/orchestrator.py)
 - Frontend auth store: [frontend/src/lib/auth.ts](/d:/CUSTOMER%20FEEDBACK%20SYSTEM%20TRANSCRIPT/frontend/src/lib/auth.ts)
 - Upload page: [frontend/src/app/upload/page.tsx](/d:/CUSTOMER%20FEEDBACK%20SYSTEM%20TRANSCRIPT/frontend/src/app/upload/page.tsx)
-- Recording detail: [frontend/src/app/recording/[id]/page.tsx](/d:/CUSTOMER%20FEEDBACK%20SYSTEM%20TRANSCRIPT/frontend/src/app/recording/[id]/page.tsx)
+- Recording detail shell: [frontend/src/app/recording/[id]/page.tsx](/d:/CUSTOMER%20FEEDBACK%20SYSTEM%20TRANSCRIPT/frontend/src/app/recording/[id]/page.tsx)
+- Recording detail UI: [frontend/src/app/recording/[id]/RecordingDetail.tsx](/d:/CUSTOMER%20FEEDBACK%20SYSTEM%20TRANSCRIPT/frontend/src/app/recording/[id]/RecordingDetail.tsx)
 
 ## Technical reference
 

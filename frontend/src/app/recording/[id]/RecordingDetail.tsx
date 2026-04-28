@@ -132,7 +132,9 @@ function SectionCard({
   );
 }
 
-export default function RecordingDetail({ id }: { id: string }) {
+export default function RecordingDetail() {
+  const params = useParams<{ id: string | string[] }>();
+  const id = Array.isArray(params?.id) ? params.id[0] : params?.id;
   const router = useRouter();
 
   const [recording, setRecording] = useState<any>(null);
@@ -160,13 +162,13 @@ export default function RecordingDetail({ id }: { id: string }) {
 
   async function loadAll() {
     try {
-      const res = await recordingsApi.get(id);
+      const res = await recordingsApi.get(id as string);
       const nextRecording = res.data;
       setRecording(nextRecording);
 
       const requests: PromiseSettledResult<any>[] = await Promise.allSettled([
-        nextRecording.transcript_ready ? recordingsApi.transcript(id) : Promise.resolve(null),
-        nextRecording.insights_ready ? recordingsApi.insights(id) : Promise.resolve(null),
+        nextRecording.transcript_ready ? recordingsApi.transcript(id as string) : Promise.resolve(null),
+        nextRecording.insights_ready ? recordingsApi.insights(id as string) : Promise.resolve(null),
       ]);
 
       const transcriptResult = requests[0];
@@ -187,12 +189,12 @@ export default function RecordingDetail({ id }: { id: string }) {
 
   async function downloadPdf() {
     try {
-      const res = await reportsApi.pdf(id);
+      const res = await reportsApi.pdf(id as string);
       const contentType = String(res.headers['content-type'] || 'application/pdf');
       const contentDisposition = String(res.headers['content-disposition'] || '');
       const fallbackExtension = contentType.includes('text/html') ? 'html' : 'pdf';
       const filenameMatch = /filename="?([^"]+)"?/i.exec(contentDisposition);
-      const filename = filenameMatch?.[1] || `aegiscx-report-${id.slice(0, 8)}.${fallbackExtension}`;
+      const filename = filenameMatch?.[1] || `aegiscx-report-${(id as string).slice(0, 8)}.${fallbackExtension}`;
       const url = URL.createObjectURL(new Blob([res.data], { type: contentType }));
       const a = document.createElement('a');
       a.href = url;

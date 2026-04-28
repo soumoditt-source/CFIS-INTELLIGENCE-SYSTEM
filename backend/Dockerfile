@@ -37,4 +37,4 @@ USER aegiscx
 EXPOSE 8000
 
 # Use shell to run initialization before starting the server
-CMD ["sh", "-c", "python init_db.py && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+CMD ["sh", "-c", "python init_db.py && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

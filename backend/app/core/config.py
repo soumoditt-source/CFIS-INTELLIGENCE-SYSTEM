@@ -81,12 +81,8 @@ class Settings(BaseSettings):
     refresh_token_expire_days: int = Field(default=7)
 
     # ─── Database ────────────────────────────────────────────
-    database_url: str = Field(
-        default="postgresql+asyncpg://aegiscx:aegiscx_secret_password@localhost:5432/aegiscx_db"
-    )
-    database_url_sync: str = Field(
-        default="postgresql://aegiscx:aegiscx_secret_password@localhost:5432/aegiscx_db"
-    )
+    database_url: str = Field(default="sqlite+aiosqlite:///./data/aegiscx.db")
+    database_url_sync: str = Field(default="sqlite:///./data/aegiscx.db")
 
     @field_validator("database_url", mode="before")
     @classmethod
@@ -124,7 +120,7 @@ class Settings(BaseSettings):
         """
         Derive sync URL from database_url if not provided.
         """
-        if v and "localhost" not in v:
+        if v and "localhost" not in v and not v.startswith("sqlite"):
             return v
             
         # Try to derive from database_url if possible

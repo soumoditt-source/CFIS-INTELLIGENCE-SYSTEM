@@ -2,45 +2,47 @@ services:
   - type: web
     name: aegiscx-api
     runtime: docker
-    dockerContext: backend
-    dockerfilePath: Dockerfile
     plan: free
     region: singapore
+    dockerContext: ./backend
+    dockerfilePath: ./backend/Dockerfile
     healthCheckPath: /api/v1/health
+    autoDeploy: true
     envVars:
       - key: ENVIRONMENT
         value: production
+      - key: LOG_LEVEL
+        value: INFO
       - key: PYTHONUNBUFFERED
         value: "1"
-      - key: PYTHONPATH
-        value: .
-      - key: PYTHON_VERSION
-        value: 3.11.9
+      - key: USE_CELERY
+        value: "false"
       - key: SECRET_KEY
         generateValue: true
-      - key: ALGORITHM
-        value: HS256
+      - key: DATABASE_URL
+        fromDatabase:
+          name: aegiscx-db
+          property: internalConnectionString
+      - key: CORS_ORIGINS
+        sync: false
+      - key: WHISPER_MODEL_SIZE
+        value: base
+      - key: WHISPER_DEVICE
+        value: cpu
+      - key: WHISPER_COMPUTE_TYPE
+        value: int8
+      - key: HF_TOKEN
+        sync: false
       - key: GOOGLE_API_KEY
         sync: false
       - key: MISTRAL_API_KEY
         sync: false
       - key: OPENAI_API_KEY
         sync: false
-      - key: HF_TOKEN
-        sync: false
-      - key: CORS_ORIGINS
-        value: "https://cfisv1577.netlify.app,https://aegiscx.netlify.app,https://aegis-cx.netlify.app,http://localhost:3000"
-      - key: DATABASE_URL
-        fromDatabase:
-          name: aegiscx-db
-          property: internalConnectionString
-
-# Production Auto-Update Trigger
-# Region: Singapore (Optimized for India)
-# Last Verified: 2026-04-28
 
 databases:
   - name: aegiscx-db
+    databaseName: aegiscx
     user: aegiscx
     plan: free
-    region: singapore # Closest to India
+    region: singapore

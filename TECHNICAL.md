@@ -1,8 +1,10 @@
 # AegisCX Technical Blueprint
 
-## 1. System intent
+## 1. Product intent
 
-AegisCX is designed to ingest spoken customer feedback, preserve the conversation as transcript evidence, and derive structured behavioral intelligence that can be audited by company teams. The architecture prioritizes three properties at once:
+AegisCX is built to turn spoken customer feedback into auditable intelligence. The system is transcript-first by design: it preserves the original conversation, then derives structured interpretation around that evidence instead of replacing it with a black-box summary.
+
+Three design goals drive the codebase:
 
 - transcript fidelity
 - graceful degradation
@@ -13,44 +15,45 @@ AegisCX is designed to ingest spoken customer feedback, preserve the conversatio
 ### Backend
 
 - Framework: FastAPI
-- Persistence: SQLAlchemy async with PostgreSQL-compatible models and local SQLite fallback
-- Processing mode: inline synchronous background processing by default, Celery-ready when enabled
-- API shape: auth, recordings, analytics, reports, admin
+- Persistence: SQLAlchemy async
+- Local default database: SQLite
+- Deployment database target: PostgreSQL
+- Processing mode: inline background execution by default, Celery-compatible when enabled
 
 ### Frontend
 
 - Framework: Next.js 14 App Router
 - Language: TypeScript
-- State: Zustand for auth, route-local state for page flows
-- API client: Axios wrapper with retry handling for slower networks and long-running analysis
+- State: Zustand for auth plus route-local state
+- API client: Axios wrapper with retry and error normalization
 
 ## 3. End-to-end processing path
 
 ### Stage 1: upload
 
-The frontend supports chunked upload for resilience on slower or unstable networks. The backend also retains a legacy single-request upload path for compatibility and direct API testing.
+The frontend supports chunked uploads so slower or unstable connections do not destroy the entire transfer. The backend also keeps a direct upload path for compatibility and easier API testing.
 
 ### Stage 2: audio preparation
 
-`backend/app/services/audio/processor.py` converts incoming media into normalized WAV audio, runs cleanup, and prepares chunk-aware files for later speech recognition. Temporary storage is handled in a project-local way so Windows temp-directory issues do not cascade into hard failures.
+[backend/app/services/audio/processor.py](/d:/CUSTOMER%20FEEDBACK%20SYSTEM%20TRANSCRIPT/backend/app/services/audio/processor.py) normalizes incoming media into WAV audio, applies cleanup, and prepares chunk-aware files for later transcription.
 
 ### Stage 3: speech to text
 
-`backend/app/services/stt/engine.py` selects the best available backend in this order:
+[backend/app/services/stt/engine.py](/d:/CUSTOMER%20FEEDBACK%20SYSTEM%20TRANSCRIPT/backend/app/services/stt/engine.py) selects the best available path in this order:
 
 1. WhisperX
 2. faster-whisper
-3. deterministic mock fallback
+3. deterministic fallback
 
-The engine now keeps a shared in-process model cache so repeated recordings do not reload the STT stack. A background warmup call is triggered on application start to reduce first-upload latency.
+The runtime keeps shared in-process model caches so repeated recordings do not reload the STT stack from scratch.
 
 ### Stage 4: transcript persistence
 
-`backend/app/services/inline_processor.py` persists the transcript and segment rows before deeper analysis. That design keeps the raw conversation available as soon as transcription is complete, even while higher-order analysis is still running.
+[backend/app/services/inline_processor.py](/d:/CUSTOMER%20FEEDBACK%20SYSTEM%20TRANSCRIPT/backend/app/services/inline_processor.py) stores the transcript and segment records before deeper analysis. This means the conversation itself is preserved even if a later NLP or LLM stage degrades.
 
 ### Stage 5: NLP intelligence
 
-`backend/app/services/nlp/pipeline.py` performs local segment-level analysis:
+[backend/app/services/nlp/pipeline.py](/d:/CUSTOMER%20FEEDBACK%20SYSTEM%20TRANSCRIPT/backend/app/services/nlp/pipeline.py) performs local segment-level analysis across these dimensions:
 
 - sentence embeddings
 - sentiment
@@ -60,76 +63,89 @@ The engine now keeps a shared in-process model cache so repeated recordings do n
 - behavioral heuristics
 - uncertainty scoring
 
-Like STT, the NLP stack now uses shared process-level caches to avoid repeated transformer reloads.
+This stage also uses shared process-level caches to avoid repeated transformer reloads.
 
 ### Stage 6: optional LLM refinement
 
-`backend/app/services/llm/orchestrator.py` only activates when confidence is below threshold or when the local NLP stage degrades. The prompt has been tightened to favor compact but context-rich paragraph output rather than diffuse verbosity. It also avoids asking for exposed chain-of-thought style output.
+[backend/app/services/llm/orchestrator.py](/d:/CUSTOMER%20FEEDBACK%20SYSTEM%20TRANSCRIPT/backend/app/services/llm/orchestrator.py) only activates when the local model confidence drops below threshold or when a fallback is required. The prompts are tuned for compact but context-rich paragraph output.
 
 ### Stage 7: insight persistence
 
-The inline processor writes:
+The processor writes:
 
-- conversation overview
-- executive summary
+- overview summary
 - behavioral summary
-- product mentions
 - praise and complaint highlights
+- product or feature mentions
 - segment-level insight rows
-- optional LLM-enriched fields
+- report-ready structured fields
 
 ## 4. Auth and tenancy model
 
-The system uses JWT access and refresh tokens. A recent stabilization pass changed password handling so:
+The backend uses JWT access and refresh tokens. New passwords are hashed with PBKDF2-SHA256 while legacy bcrypt hashes can still be verified and transparently refreshed on successful login.
 
-- new passwords use PBKDF2-SHA256
-- legacy bcrypt hashes still verify
-- successful legacy logins are transparently rehashed
-
-Every real user is also normalized into a company workspace. This prevents missing-tenant bugs where uploads or dashboards silently fail because `company_id` was absent.
+Every real user is normalized into a company workspace so dashboard, upload, and reporting flows do not break on missing `company_id`.
 
 ## 5. Reporting behavior
 
-The report endpoint attempts native PDF generation with WeasyPrint. On Windows systems that have the Python package installed but lack native rendering libraries, the endpoint now falls back to an HTML download instead of returning a `500` error. The frontend reads the returned content type and downloads the correct file accordingly.
+The report endpoint tries native PDF generation first. When local Windows PDF runtime libraries are missing, the endpoint falls back to an HTML report download instead of failing the user flow.
 
 ## 6. Frontend reliability patterns
 
-Recent frontend hardening focused on the user-facing failure modes that caused the generic client-side crash experience:
+Recent hardening focuses on the failure cases that previously caused blank client-side crashes:
 
-- persisted auth storage is parsed defensively
-- route-level error boundaries prevent blank application crashes
-- dashboard reload loops were removed
+- auth storage is parsed defensively
+- route-level error boundaries catch rendering failures
+- dynamic recording detail pages are preserved as real app routes
+- upload progress is separated from server-side analysis progress
 - detail views guard against partial transcript or insight payloads
-- upload messaging distinguishes upload completion from analysis completion
 
 ## 7. Performance profile
 
 On the verified local stack:
 
-- fresh warmed uploads complete in under one minute for the sample test audio
-- first cold boot remains slower because model caches must populate
-- current safe local target remains roughly 5-minute media files and up to 1 GB upload size
+- a warmed sample upload completed to `ANALYZED` in about `28.6 seconds`
+- the first cold run is slower because models have to load
+- the current practical local target is roughly five-minute media files and up to one gigabyte uploads
 
-The biggest latency wins in the current version come from:
+Most of the recent speed gains come from:
 
-- shared STT runtime caching
-- shared NLP runtime caching
+- shared STT model caching
+- shared NLP model caching
 - startup warmup
-- chunked upload retry behavior
+- resilient chunked upload handling
 
 ## 8. Deployment model
 
-The project is best deployed as two surfaces:
+### Local development
 
-- Next.js frontend on Netlify
-- FastAPI backend on a Python or Docker host
+The best fidelity path is still local:
 
-The frontend is configured to use `NEXT_PUBLIC_API_URL`, which keeps deployment simple as long as the backend CORS settings allow the Netlify domain.
+- frontend on `127.0.0.1:3000`
+- backend on `127.0.0.1:8000`
+- SQLite by default
+
+### Zero-cost public demo
+
+The current zero-cost public deployment target is:
+
+- Vercel Hobby for the Next.js frontend
+- Render Free Web Service for the FastAPI backend
+- Render Free Postgres for the database
+
+That stack is sufficient for public testing from any device, but it has hard platform constraints:
+
+- free Render services sleep when idle
+- free Render disk is ephemeral
+- free Render Postgres expires after 30 days
+
+So this stack is best described as public-demo ready, not durable long-term production infrastructure.
 
 ## 9. Files worth reading first
 
 - [backend/app/main.py](/d:/CUSTOMER%20FEEDBACK%20SYSTEM%20TRANSCRIPT/backend/app/main.py)
 - [backend/app/core/config.py](/d:/CUSTOMER%20FEEDBACK%20SYSTEM%20TRANSCRIPT/backend/app/core/config.py)
+- [backend/app/core/database.py](/d:/CUSTOMER%20FEEDBACK%20SYSTEM%20TRANSCRIPT/backend/app/core/database.py)
 - [backend/app/api/routes/auth.py](/d:/CUSTOMER%20FEEDBACK%20SYSTEM%20TRANSCRIPT/backend/app/api/routes/auth.py)
 - [backend/app/api/routes/recordings.py](/d:/CUSTOMER%20FEEDBACK%20SYSTEM%20TRANSCRIPT/backend/app/api/routes/recordings.py)
 - [backend/app/api/routes/reports_admin.py](/d:/CUSTOMER%20FEEDBACK%20SYSTEM%20TRANSCRIPT/backend/app/api/routes/reports_admin.py)
@@ -138,4 +154,4 @@ The frontend is configured to use `NEXT_PUBLIC_API_URL`, which keeps deployment 
 - [backend/app/services/nlp/pipeline.py](/d:/CUSTOMER%20FEEDBACK%20SYSTEM%20TRANSCRIPT/backend/app/services/nlp/pipeline.py)
 - [backend/app/services/llm/orchestrator.py](/d:/CUSTOMER%20FEEDBACK%20SYSTEM%20TRANSCRIPT/backend/app/services/llm/orchestrator.py)
 - [frontend/src/app/upload/page.tsx](/d:/CUSTOMER%20FEEDBACK%20SYSTEM%20TRANSCRIPT/frontend/src/app/upload/page.tsx)
-- [frontend/src/app/recording/[id]/page.tsx](/d:/CUSTOMER%20FEEDBACK%20SYSTEM%20TRANSCRIPT/frontend/src/app/recording/[id]/page.tsx)
+- [frontend/src/app/recording/[id]/RecordingDetail.tsx](/d:/CUSTOMER%20FEEDBACK%20SYSTEM%20TRANSCRIPT/frontend/src/app/recording/[id]/RecordingDetail.tsx)

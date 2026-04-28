@@ -1,100 +1,128 @@
 # Deployment Guide
 
-## Recommended topology
+This guide is written for the current restored AegisCX build, not for the earlier broken static-export attempt.
 
-Deploy AegisCX as two services:
+## Recommended zero-cost stack
 
-1. frontend on Netlify
-2. backend on a Python or Docker host
+For a public testable deployment with no required payment on the platform side, use:
 
-This keeps the Next.js user interface fast and CDN-friendly while allowing the FastAPI backend to keep its long-running media processing behavior.
+1. Vercel Hobby for the Next.js frontend
+2. Render Free Web Service for the FastAPI backend
+3. Render Free Postgres for the database
 
-## Frontend deployment on Netlify
+This is the best zero-cost path for testing from any device with the current architecture. It is public-demo ready, but it is not a forever-production stack because Render free services sleep, free local disks are ephemeral, and free Render Postgres expires after 30 days.
 
-The repository includes [netlify.toml](/d:/CUSTOMER%20FEEDBACK%20SYSTEM%20TRANSCRIPT/netlify.toml) configured for the `frontend` application.
+## Before you deploy
 
-### Netlify setup
+Verify locally first:
 
-1. Create a new site from this repository.
-2. Confirm the build base is `frontend`.
-3. Confirm the build command is `npm run build`.
-4. Set `NEXT_PUBLIC_API_URL` to your deployed backend URL, for example:
-
-```text
-https://your-backend-domain.example/api/v1
+```powershell
+powershell -ExecutionPolicy Bypass -File .\launch_aegiscx.ps1
 ```
 
-5. Deploy.
+Then check:
+
+- frontend opens on `http://127.0.0.1:3000`
+- backend health works on `http://127.0.0.1:8000/api/v1/health`
+- a sample upload reaches `ANALYZED`
+
+## Backend on Render
+
+The repo includes [render.yaml](/d:/CUSTOMER%20FEEDBACK%20SYSTEM%20TRANSCRIPT/render.yaml) for a Render Blueprint deployment.
+
+### Render setup
+
+1. Push your latest repository changes to GitHub.
+2. Sign in to Render.
+3. Create a new Blueprint instance from the GitHub repository.
+4. Render will detect `render.yaml` at the repository root.
+5. Confirm the region is `singapore`.
+6. Let Render create:
+   - one free web service named `aegiscx-api`
+   - one free Postgres database named `aegiscx-db`
+
+### Required backend environment values
+
+Set these in the Render dashboard before the first real use:
+
+- `CORS_ORIGINS`
+  - example: `https://your-project.vercel.app,http://localhost:3000,http://127.0.0.1:3000`
+- `GOOGLE_API_KEY`
+- `MISTRAL_API_KEY`
+- `OPENAI_API_KEY`
+- `HF_TOKEN`
+
+### Backend runtime notes
+
+- The Dockerfile now binds to `PORT`, which matches Render expectations.
+- The backend defaults are tuned for CPU-based free deployment: `WHISPER_MODEL_SIZE=base`, `WHISPER_DEVICE=cpu`, `WHISPER_COMPUTE_TYPE=int8`.
+- `USE_CELERY=false` keeps the free deployment simple and avoids requiring Redis.
+
+## Frontend on Vercel
+
+### Vercel setup
+
+1. Sign in to Vercel.
+2. Import the GitHub repository.
+3. In project settings, set the Root Directory to `frontend`.
+4. Keep the framework as Next.js.
+5. Add the environment variable below.
+6. Deploy.
 
 ### Required frontend environment variable
 
 ```text
-NEXT_PUBLIC_API_URL=https://your-backend-domain.example/api/v1
+NEXT_PUBLIC_API_URL=https://your-render-service.onrender.com/api/v1
 ```
 
-## Backend deployment
+### Important note about the frontend
 
-The backend can be deployed on any platform that supports Python 3.11 or Docker.
+This app must run as a real Next.js server deployment, not as a static export. The dynamic recording detail route is intentionally restored for server-backed behavior.
 
-### Minimum requirements
+## Post-deploy wiring
 
-- Python 3.11+
-- FFmpeg installed on the host
-- writable storage for `data/` and `logs/`
-- optional Redis if you want Celery or LLM caching
+After both services are live:
 
-### Backend environment variables
+1. Copy the Vercel site URL.
+2. Add it to the backend `CORS_ORIGINS` value in Render.
+3. Redeploy the Render backend if needed.
+4. Test login, upload, transcript, insights, and report download from the public Vercel URL.
 
-Start from [backend/.env.example](/d:/CUSTOMER%20FEEDBACK%20SYSTEM%20TRANSCRIPT/backend/.env.example).
+## Public verification checklist
 
-Important production values:
+- `GET /api/v1/health` returns healthy
+- register works
+- login works
+- upload works
+- status polling reaches `ANALYZED`
+- transcript page loads without crashing
+- insights render
+- report download returns either PDF or the HTML fallback
 
-- `SECRET_KEY`
-- `DATABASE_URL`
-- `REDIS_URL`
-- `CORS_ORIGINS`
-- `WHISPER_MODEL_SIZE`
-- `WHISPER_DEVICE`
-- `GOOGLE_API_KEY`
-- `OPENAI_API_KEY`
-- `MISTRAL_API_KEY`
-- `HF_TOKEN`
+## Free-tier limits you should expect
 
-### Example backend startup
+### Render free backend
 
-```bash
-uvicorn app.main:app --host 0.0.0.0 --port 8000
-```
+- sleeps after inactivity
+- wakes up slowly on the next request
+- loses local filesystem state on restart or redeploy
 
-## CORS reminder
+### Render free Postgres
 
-When the frontend is live on Netlify, the backend must include the Netlify site origin in `CORS_ORIGINS`.
+- good for testing and demos
+- expires 30 days after creation
 
-Example:
+### Vercel Hobby frontend
 
-```text
-CORS_ORIGINS=https://your-site.netlify.app,http://localhost:3000,http://127.0.0.1:3000
-```
+- good for personal projects and demos
+- usage is capped by the Hobby plan
 
-## File storage note
+## When you are ready for a stronger production stack
 
-This codebase currently stores uploads and generated artifacts on the backend filesystem. For production, you may eventually want to move raw uploads and generated reports to object storage, but that is not required for local or small deployment environments.
+Move these pieces first:
 
-## Current production readiness summary
+1. database from free temporary tier to a durable managed Postgres plan
+2. raw upload and generated report storage from local disk to object storage
+3. long-running processing from inline mode to queued workers
 
-Ready now:
-
-- frontend build pipeline
-- backend API service
-- chunked upload flow
-- transcript and insights persistence
-- report download fallback
-- Netlify frontend wiring
-
-Still recommended later for heavier production use:
-
-- object storage for media
-- background worker queue at scale
-- production PostgreSQL
-- HTTPS secrets management
-- monitoring and alerting
+Those upgrades are optional for testing, but they are the real path from public demo to durable production.
