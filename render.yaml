@@ -40,3 +40,15 @@ services:
         value: "500"
       - key: DEBUG
         value: "false"
+      - key: CORS_ORIGINS
+        value: "*" # Set this to your netlify URL later for production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: aegiscx-db
+          property: connectionString
+
+databases:
+  - name: aegiscx-db
+    user: aegiscx
+    plan: free
+    region: singapore # Closest to India

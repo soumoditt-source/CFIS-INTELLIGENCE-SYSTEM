@@ -1,19 +1,23 @@
 [build]
-  base = "frontend"
   command = "npm run build"
   publish = ".next"
+  base = "frontend"
 
 [build.environment]
   NODE_VERSION = "20"
-  NEXT_TELEMETRY_DISABLED = "1"
+  NEXT_PUBLIC_API_URL = "https://aegiscx-api.onrender.com/api/v1"
 
-[[plugins]]
-  package = "@netlify/plugin-nextjs"
-
-# Redirect API calls to the backend (not needed — frontend calls backend directly via env var)
-# All routes handled by Next.js
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
-  force = false
+
+# Next.js specific settings
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
