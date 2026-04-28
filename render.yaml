@@ -11,6 +11,10 @@ services:
     envVars:
       - key: ENVIRONMENT
         value: production
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: PYTHONPATH
+        value: .
       - key: PYTHON_VERSION
         value: 3.11.9
       - key: SECRET_KEY
